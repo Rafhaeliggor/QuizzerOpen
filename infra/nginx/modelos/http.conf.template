@@ -1,0 +1,18 @@
+# Modo TLS_MODO=desligado — HTTP puro (acesso por IP enquanto não há DNS — ADR-0008).
+server {
+    listen 8080 default_server;
+    server_name _;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Desafio do Let's Encrypt: permite emitir o 1º certificado antes de ligar o HTTPS.
+    location /.well-known/acme-challenge/ {
+        root /var/www/acme;
+    }
+
+    include /etc/nginx/snippets/app.conf;
+}

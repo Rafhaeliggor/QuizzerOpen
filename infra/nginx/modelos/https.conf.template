@@ -1,0 +1,43 @@
+# Modo TLS_MODO=autoassinado|letsencrypt — HTTPS com redirecionamento do HTTP (ADR-0029).
+# HTTP: só healthcheck, desafio ACME e redirecionamento para HTTPS.
+server {
+    listen 8080 default_server;
+    server_name _;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/acme;
+    }
+
+    location / {
+        # Com Let's Encrypt, sempre para o domínio do certificado (acesso pelo IP cairia em aviso).
+        return 301 https://${HOST_REDIRECIONAMENTO}${PORTA_HTTPS_SUFIXO}$request_uri;
+    }
+}
+
+server {
+    listen 8443 ssl default_server;
+    http2 on;
+    server_name _;
+
+    ssl_certificate     ${TLS_CERTIFICADO};
+    ssl_certificate_key ${TLS_CHAVE};
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:TLS:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    include /etc/nginx/snippets/app.conf;
+}

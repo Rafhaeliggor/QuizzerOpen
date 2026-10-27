@@ -1,0 +1,38 @@
+/* Auditoria, LGPD e Integrações: mesmo vocabulário visual das demais telas. */
+.qz-adm-filtros {
+  margin-bottom: var(--qz-espaco-3);
+}
+.qz-adm-data {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.87rem;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-adm-data .qz-input {
+  min-height: 44px;
+  flex: 0 0 170px;
+}
+.qz-adm-nota {
+  margin: 0 0 var(--qz-espaco-4);
+  font-size: 0.85rem;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-adm-bloco {
+  margin-bottom: var(--qz-espaco-4);
+}
+.qz-adm-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--qz-espaco-4);
+  align-items: start;
+}
+.qz-adm-nowrap {
+  flex-wrap: nowrap;
+}
+.qz-adm-token {
+  word-break: break-all;
+}
+.qz-adm-token-acoes {
+  margin-top: 8px;
+}

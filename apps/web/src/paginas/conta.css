@@ -1,0 +1,88 @@
+/* Minha conta / Configurações (Figma 04): abas, cartões principais e coluna lateral. */
+.qz-cta-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--qz-espaco-2);
+  margin-bottom: var(--qz-espaco-3);
+}
+.qz-cta-titulo h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.qz-cta-descricao {
+  margin: 0 0 var(--qz-espaco-4);
+  font-size: 0.87rem;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-cta-rodape,
+.qz-cta-solicitacoes {
+  margin-top: var(--qz-espaco-4);
+}
+.qz-cta-lateral {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.qz-cartao.qz-cta-lateral > h2:first-child {
+  margin-bottom: 4px;
+}
+.qz-cta-lateral__nome {
+  margin-top: 6px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.qz-cta-lateral__linha {
+  font-size: 0.87rem;
+  color: var(--qz-cor-texto-suave);
+  word-break: break-word;
+}
+.qz-cta-lateral__nota {
+  margin: 0;
+  font-size: 0.87rem;
+  line-height: 1.5;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-cta-lateral .qz-botao {
+  margin-top: 6px;
+}
+/* Aparência: escolha do tema (padrão do sistema, claro, escuro) */
+.qz-cta-temas {
+  display: grid;
+  gap: var(--qz-espaco-2);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.qz-cta-tema {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--qz-espaco-3);
+  padding: var(--qz-espaco-3) var(--qz-espaco-4);
+  border: 1px solid var(--qz-cor-borda);
+  border-radius: var(--qz-raio-pequeno);
+  cursor: pointer;
+}
+.qz-cta-tema:hover {
+  border-color: var(--qz-cor-borda-forte);
+  background: var(--qz-cor-hover);
+}
+.qz-cta-tema--ativo,
+.qz-cta-tema--ativo:hover {
+  border-color: var(--qz-cor-primaria);
+  background: var(--qz-cor-primaria-suave);
+}
+.qz-cta-tema input {
+  margin: 3px 0 0;
+}
+.qz-cta-tema > span {
+  display: flex;
+  flex-direction: column;
+}
+.qz-cta-tema__descricao {
+  font-size: 0.87rem;
+  color: var(--qz-cor-texto-suave);
+}

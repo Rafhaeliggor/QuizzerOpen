@@ -1,0 +1,40 @@
+# Infraestrutura para desenvolvimento local: apenas Postgres e Redis.
+# A API e o frontend rodam no host (npm run dev:api / npm run dev:web).
+# Portas expostas somente em 127.0.0.1 — nunca na interface pública.
+name: quizzer-dev
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: quizzer
+      POSTGRES_PASSWORD: quizzer_dev
+      POSTGRES_DB: quizzer
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # Postgres 18+: o volume é montado em /var/lib/postgresql (não mais em /data)
+      - pg_data_dev:/var/lib/postgresql
+      - ./infra/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quizzer -d quizzer"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pg_data_dev:
+  redis_data_dev:

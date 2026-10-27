@@ -1,0 +1,246 @@
+# Stack de produção/homologação no VPS (ver docs/adr/0008-infraestrutura-docker-vps.md).
+#
+#   cp .env.example .env   # e preencha os segredos
+#   docker compose up -d --build
+#
+# Apenas o Nginx publica porta no host. API, Postgres e Redis ficam em redes internas.
+name: quizzer
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-api-env: &api-env
+  NODE_ENV: production
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgresql://quizzer:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/quizzer
+  REDIS_URL: redis://:${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}@redis:6379
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?defina JWT_ACCESS_SECRET no .env}
+  MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?defina MFA_ENCRYPTION_KEY no .env}
+  MFA_ISSUER: ${MFA_ISSUER:-Quizzer}
+  TLS_ATIVO: ${TLS_ATIVO:-false}
+  HSTS_PRELOAD: ${HSTS_PRELOAD:-false}
+  # Fuso da instituição para datas sem hora e mensagens (ADR-0058)
+  FUSO_HORARIO: ${FUSO_HORARIO:-America/Maceio}
+  TRUST_PROXY: "1"
+  # E-mail opcional (ADR-0041): sem SMTP_HOST o envio fica desligado.
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORTA: ${SMTP_PORTA:-587}
+  SMTP_SEGURO: ${SMTP_SEGURO:-false}
+  SMTP_USUARIO: ${SMTP_USUARIO:-}
+  SMTP_SENHA: ${SMTP_SENHA:-}
+  EMAIL_REMETENTE: ${EMAIL_REMETENTE:-Quizzer <nao-responda@quizzer.local>}
+  # Endereço público usado nos links dos e-mails (ex.: https://provas.instituicao.edu.br)
+  APP_URL: ${APP_URL:-http://localhost}
+  POLITICA_VERSAO: ${POLITICA_VERSAO:-2026-10-27}
+  RETENCAO_EXTERNOS_DIAS: ${RETENCAO_EXTERNOS_DIAS:-0}
+  NOTIFICACOES_RETENCAO_DIAS: ${NOTIFICACOES_RETENCAO_DIAS:-180}
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Identidade exibida no menu lateral e link da central de ajuda (ADR-0053)
+        VITE_NOME_INSTITUICAO: ${NOME_INSTITUICAO:-Unima}
+        VITE_URL_AJUDA: ${URL_AJUDA:-}
+        # Contato do encarregado de dados (DPO) nos Termos e na Política (ADR-0060)
+        VITE_CONTATO_ENCARREGADO: ${CONTATO_ENCARREGADO:-}
+    image: quizzer-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      API_UPSTREAM: api:3000
+      # desligado (HTTP por IP) | autoassinado | letsencrypt — ver infra/tls e ADR-0029
+      TLS_MODO: ${TLS_MODO:-desligado}
+      TLS_DOMINIO: ${TLS_DOMINIO:-}
+      PORTA_HTTPS_PUBLICA: ${PORTA_HTTPS_PUBLICA:-443}
+      HSTS_PRELOAD: ${HSTS_PRELOAD:-false}
+    ports:
+      - "${HTTP_PORT:-80}:8080"
+      - "${HTTPS_PORT:-443}:8443"
+    volumes:
+      - tls_certs:/etc/nginx/certs:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - acme_webroot:/var/www/acme:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [frontend-net, backend-net]
+    logging: *logging
+
+  # Renovação automática do Let's Encrypt (perfil "letsencrypt": COMPOSE_PROFILES=letsencrypt).
+  # A emissão inicial é feita por infra/tls/ativar-letsencrypt.sh.
+  certbot:
+    image: certbot/certbot:v5.8.0
+    profiles: [letsencrypt]
+    restart: unless-stopped
+    # Depois de cada renovação, o grupo 101 (usuário do Nginx sem root) volta a ler os
+    # certificados: o certbot grava live/ e archive/ só para root (BUG-026).
+    entrypoint: ["/bin/sh", "-c", "trap exit TERM; while :; do certbot renew --webroot -w /var/www/acme --quiet; chgrp -R 101 /etc/letsencrypt/live /etc/letsencrypt/archive && chmod 750 /etc/letsencrypt/live /etc/letsencrypt/archive && find /etc/letsencrypt/archive -name 'privkey*.pem' -exec chmod 640 {} +; sleep 12h & wait $${!}; done"]
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - acme_webroot:/var/www/acme
+    networks: [frontend-net]
+    logging: *logging
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    image: quizzer-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment: *api-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    volumes:
+      # Mídias das questões (imagens/áudios) — entra no backup (ADR-0032)
+      - midias:/app/dados/midias
+    # egress-net: saída para o servidor SMTP (as demais redes da API são internas).
+    networks: [backend-net, data-net, egress-net]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+  # One-shot: aplica migrations pendentes antes de a API subir.
+  # Seed manual: docker compose run --rm -e SEED_SENHA_PADRAO=... migrate npx prisma db seed
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: build
+    image: quizzer-api-migrate:${IMAGE_TAG:-latest}
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [data-net]
+    restart: "no"
+    logging: *logging
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: quizzer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: quizzer
+    volumes:
+      - pg_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quizzer -d quizzer"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [data-net]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+  # Backup automatizado: pg_dump ao subir e a cada BACKUP_INTERVALO_HORAS, retenção de
+  # BACKUP_RETENCAO_DIAS. Arquivos em BACKUP_DIR no host (copie para fora do VPS!).
+  # Restauração: infra/backup/restaurar.sh (ver docs/features/016-operacao-backup-e-carga.md).
+  backup:
+    build:
+      context: infra/backup
+    image: quizzer-backup:latest
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: quizzer
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: quizzer
+      BACKUP_INTERVALO_HORAS: ${BACKUP_INTERVALO_HORAS:-24}
+      BACKUP_RETENCAO_DIAS: ${BACKUP_RETENCAO_DIAS:-7}
+      BACKUP_AGE_DESTINATARIO: ${BACKUP_AGE_DESTINATARIO:-}
+      BACKUP_RCLONE_DESTINO: ${BACKUP_RCLONE_DESTINO:-}
+      BACKUP_WEBHOOK_FALHA: ${BACKUP_WEBHOOK_FALHA:-}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+      - midias:/midias:ro
+      # Configuração do rclone (remotos S3, B2, SFTP, Google Drive…) — opcional
+      - ${BACKUP_RCLONE_CONFIG_DIR:-./infra/backup/rclone}:/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # data-net (Postgres) + frontend-net (saída para a internet: cópia externa e webhook)
+    networks: [data-net, frontend-net]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+  # Monitor: API (disponibilidade, 5xx e latência), Nginx, certificado, backup, teste de
+  # restauração e disco → webhook (ADR-0036/0054).
+  monitor:
+    build:
+      context: infra/monitor
+    image: quizzer-monitor:latest
+    restart: unless-stopped
+    environment:
+      MONITOR_WEBHOOK: ${MONITOR_WEBHOOK:-${BACKUP_WEBHOOK_FALHA:-}}
+      MONITOR_INTERVALO_MIN: ${MONITOR_INTERVALO_MIN:-5}
+      MONITOR_CERT_DIAS: ${MONITOR_CERT_DIAS:-14}
+      MONITOR_DISCO_PCT: ${MONITOR_DISCO_PCT:-90}
+      MONITOR_5XX_PCT: ${MONITOR_5XX_PCT:-5}
+      MONITOR_P95_MS: ${MONITOR_P95_MS:-2000}
+      MONITOR_MIN_REQUISICOES: ${MONITOR_MIN_REQUISICOES:-20}
+      MONITOR_RESTAURACAO_DIAS: ${MONITOR_RESTAURACAO_DIAS:-35}
+      # Só para saber se há cópia externa (sem ela, o teste de restauração não é cobrado).
+      BACKUP_RCLONE_DESTINO: ${BACKUP_RCLONE_DESTINO:-}
+      TLS_MODO: ${TLS_MODO:-desligado}
+      TLS_DOMINIO: ${TLS_DOMINIO:-}
+      BACKUP_INTERVALO_HORAS: ${BACKUP_INTERVALO_HORAS:-24}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups:ro
+    # Só começa a vigiar com a API e o Nginx no ar (evita falso alarme na subida).
+    depends_on:
+      api:
+        condition: service_healthy
+      nginx:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    # backend-net (API e Nginx) + frontend-net (saída para o webhook)
+    networks: [backend-net, frontend-net]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    networks: [data-net]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+networks:
+  frontend-net:
+  egress-net:
+  backend-net:
+    internal: true
+  data-net:
+    internal: true
+
+volumes:
+  pg_data:
+  redis_data:
+  tls_certs:
+  letsencrypt:
+  acme_webroot:
+  midias:

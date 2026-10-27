@@ -1,0 +1,37 @@
+{
+  "name": "quizzer",
+  "private": true,
+  "description": "Quizzer — Sistema de Formulação de Quizzes e Provas",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev:infra": "docker compose -f docker-compose.dev.yml up -d",
+    "dev:api": "npm run start:dev -w @quizzer/api",
+    "dev:web": "npm run dev -w @quizzer/web",
+    "lint": "npm run lint --workspaces",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "test:e2e": "npm run test:e2e -w @quizzer/api",
+    "test:navegador": "npm run test:navegador -w @quizzer/web",
+    "test:carga": "node testes/carga/turma-simultanea.mjs",
+    "test:tudo": "bash testes/testar-tudo.sh",
+    "test:rapido": "bash testes/testar-tudo.sh --rapido"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.1": true,
+    "argon2@0.45.1": true,
+    "esbuild@0.28.2": true,
+    "prisma@7.10.1": true
+  },
+  "overrides": {
+    "mysql2": "^3.24.5",
+    "deepmerge-ts": "^8.0.2",
+    "multer": "^2.5.0"
+  }
+}

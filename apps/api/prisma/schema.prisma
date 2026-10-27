@@ -1,0 +1,1010 @@
+// Schema inicial do Quizzer (Sprint 1).
+//
+// Regras de modelagem (ver docs/adr/0005-banco-schemas-por-modulo.md):
+// - Um schema PostgreSQL por módulo de domínio (RNF02).
+// - Relações (FK) só DENTRO do mesmo schema. Referências a outro módulo são
+//   apenas colunas uuid, sem `@relation` — a integridade é garantida pelo
+//   serviço do módulo dono do dado.
+// - Tabelas e colunas em snake_case (português, como no Diagrama ER);
+//   modelos e campos Prisma em PascalCase/camelCase.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "esm"
+  importFileExtension    = "js"
+  generatedFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["iam", "turmas", "questoes", "provas", "aplicacao", "correcao", "recursos", "notificacoes", "auditoria"]
+}
+
+// ============================================================================
+// Schema: iam — identidade, autenticação e sessão (RF01, RF02)
+// ============================================================================
+
+enum Papel {
+  ADMINISTRADOR
+  COORDENADOR
+  PROFESSOR
+  CORRETOR
+  ALUNO
+
+  @@schema("iam")
+}
+
+enum Ambiente {
+  PROFISSIONAL
+  ALUNO
+
+  @@schema("iam")
+}
+
+model Usuario {
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  nome                  String
+  /// Sempre armazenado em minúsculas (normalizado no serviço).
+  email                 String    @unique
+  /// Matrícula institucional — login alternativo do aluno.
+  matricula             String?   @unique
+  senhaHash             String    @map("senha_hash")
+  papel                 Papel
+  /// Força troca de senha no próximo login (usuário criado por administrador).
+  trocarSenha           Boolean   @default(false) @map("trocar_senha")
+  ativo                 Boolean   @default(true)
+  mfaHabilitado         Boolean   @default(false) @map("mfa_habilitado")
+  /// Segredo TOTP cifrado (AES-256-GCM). Nunca em texto claro.
+  mfaSegredoCifrado     String?   @map("mfa_segredo_cifrado")
+  /// Último time-step TOTP aceito — impede reutilização do mesmo código.
+  mfaUltimoPasso        BigInt?   @map("mfa_ultimo_passo")
+  tentativasLoginFalha  Int       @default(0) @map("tentativas_login_falha")
+  bloqueadoAte          DateTime? @map("bloqueado_ate") @db.Timestamptz(3)
+  ultimoLoginEm         DateTime? @map("ultimo_login_em") @db.Timestamptz(3)
+  /// LGPD: dados pessoais removidos (registro mantido só para integridade acadêmica).
+  anonimizadoEm         DateTime? @map("anonimizado_em") @db.Timestamptz(3)
+  /// Ciência da política de privacidade (registrada no 1º acesso — LGPD).
+  politicaAceitaEm      DateTime? @map("politica_aceita_em") @db.Timestamptz(3)
+  /// Versão da política aceita.
+  politicaVersao        String?   @map("politica_versao")
+  /// Hashes SHA-256 dos códigos de recuperação do MFA ainda não usados.
+  mfaCodigosRecuperacao String[]  @default([]) @map("mfa_codigos_recuperacao")
+  /// Recebe as notificações também por e-mail (quando o SMTP está configurado).
+  notificacoesPorEmail  Boolean   @default(true) @map("notificacoes_por_email")
+  criadoEm              DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm          DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  sessoes              Sessao[]
+  redefinicoesSenha    RedefinicaoSenha[]
+  solicitacoesLgpd     SolicitacaoLgpd[]   @relation("solicitacao_titular")
+  permissoesDelegadas  PermissaoDelegada[] @relation("permissao_usuario")
+  permissoesConcedidas PermissaoDelegada[] @relation("permissao_concedente")
+
+  @@map("usuarios")
+  @@schema("iam")
+}
+
+/// Sessão de login. Guarda apenas o hash do refresh token (rotacionado a cada uso).
+model Sessao {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  usuarioId        String    @map("usuario_id") @db.Uuid
+  ambiente         Ambiente
+  refreshTokenHash String    @map("refresh_token_hash")
+  /// Hash do refresh anterior, aceito por alguns segundos após a rotação (duas abas renovando juntas).
+  refreshAnteriorHash String? @map("refresh_anterior_hash")
+  rotacionadaEm    DateTime? @map("rotacionada_em") @db.Timestamptz(3)
+  expiraEm         DateTime  @map("expira_em") @db.Timestamptz(3)
+  revogadaEm       DateTime? @map("revogada_em") @db.Timestamptz(3)
+  ip               String?
+  userAgent        String?   @map("user_agent")
+  criadoEm         DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  ultimoUsoEm      DateTime  @default(now()) @map("ultimo_uso_em") @db.Timestamptz(3)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("sessoes")
+  @@schema("iam")
+}
+
+enum TipoSolicitacaoLgpd {
+  EXCLUSAO
+  /// Correção de dados cadastrais (lote 8).
+  CORRECAO
+
+  @@schema("iam")
+}
+
+enum StatusSolicitacaoLgpd {
+  PENDENTE
+  CONCLUIDA
+  RECUSADA
+
+  @@schema("iam")
+}
+
+/// Pedido do titular para exclusão/anonimização dos dados pessoais (LGPD art. 18, VI — RNF05).
+model SolicitacaoLgpd {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  usuarioId       String                @map("usuario_id") @db.Uuid
+  status          StatusSolicitacaoLgpd @default(PENDENTE)
+  tipo            TipoSolicitacaoLgpd   @default(EXCLUSAO)
+  /// Correção pedida pelo titular (ex.: { "nome": "Nome correto" }).
+  dadosCorrigidos Json?                 @map("dados_corrigidos")
+  justificativa   String?
+  /// Resposta do administrador (obrigatória ao recusar).
+  resposta        String?
+  atendidoPorId   String?               @map("atendido_por_id") @db.Uuid
+  criadoEm        DateTime              @default(now()) @map("criado_em") @db.Timestamptz(3)
+  concluidaEm     DateTime?             @map("concluida_em") @db.Timestamptz(3)
+
+  usuario Usuario @relation("solicitacao_titular", fields: [usuarioId], references: [id])
+
+  @@index([status, criadoEm])
+  @@index([usuarioId])
+  @@map("solicitacoes_lgpd")
+  @@schema("iam")
+}
+
+/// Permissão específica concedida a um usuário sem alterar seu papel base (RF02 — delegação).
+/// Pedido de redefinição de senha por e-mail ("esqueci minha senha"). Só o hash do token é guardado.
+model RedefinicaoSenha {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  usuarioId String    @map("usuario_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiraEm  DateTime  @map("expira_em") @db.Timestamptz(3)
+  usadoEm   DateTime? @map("usado_em") @db.Timestamptz(3)
+  criadoEm  DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("redefinicoes_senha")
+  @@schema("iam")
+}
+
+/// Chave da API de integração (LMS/ERP — lote 8). O segredo nunca é guardado, só o hash.
+model ChaveIntegracao {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  nome        String
+  /// Parte pública do token (qz_<prefixo>_<segredo>) — identifica a chave nos logs.
+  prefixo     String    @unique
+  segredoHash String    @map("segredo_hash")
+  escopos     String[]
+  criadoPorId String    @map("criado_por_id") @db.Uuid
+  criadoEm    DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  expiraEm    DateTime? @map("expira_em") @db.Timestamptz(3)
+  ultimoUsoEm DateTime? @map("ultimo_uso_em") @db.Timestamptz(3)
+  revogadaEm  DateTime? @map("revogada_em") @db.Timestamptz(3)
+
+  @@map("chaves_integracao")
+  @@schema("iam")
+}
+
+model PermissaoDelegada {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  usuarioId      String    @map("usuario_id") @db.Uuid
+  concedidoPorId String    @map("concedido_por_id") @db.Uuid
+  permissao      String
+  /// Validade opcional da delegação; depois dela a permissão deixa de valer.
+  expiraEm       DateTime? @map("expira_em") @db.Timestamptz(3)
+  criadoEm       DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  usuario      Usuario @relation("permissao_usuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+  concedidoPor Usuario @relation("permissao_concedente", fields: [concedidoPorId], references: [id])
+
+  @@unique([usuarioId, permissao])
+  @@map("permissoes_delegadas")
+  @@schema("iam")
+}
+
+// ============================================================================
+// Schema: turmas — turmas e matrículas (RF03)
+// ============================================================================
+
+model Turma {
+  id                     String   @id @default(uuid(7)) @db.Uuid
+  nome                   String
+  periodoInicio          DateTime @map("periodo_inicio") @db.Date
+  periodoFim             DateTime @map("periodo_fim") @db.Date
+  /// Referência a iam.usuarios (sem FK — outro schema).
+  professorResponsavelId String   @map("professor_responsavel_id") @db.Uuid
+  /// Código da turma no sistema acadêmico (integração — lote 8).
+  codigoExterno          String?  @unique @map("codigo_externo")
+  criadoEm               DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm           DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  matriculas  Matricula[]
+  professores TurmaProfessor[]
+  grupos      GrupoTurma[]
+
+  @@index([professorResponsavelId])
+  @@map("turmas")
+  @@schema("turmas")
+}
+
+/// Professores adicionais da turma (RF03 — "professor(es) responsável(is)"). O responsável
+/// principal continua em turmas.professor_responsavel_id.
+model TurmaProfessor {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  turmaId     String   @map("turma_id") @db.Uuid
+  /// Referência a iam.usuarios (sem FK — outro schema).
+  professorId String   @map("professor_id") @db.Uuid
+  criadoEm    DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  turma Turma @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+
+  @@unique([turmaId, professorId])
+  @@index([professorId])
+  @@map("turma_professores")
+  @@schema("turmas")
+}
+
+/// Vínculo aluno–turma. Remoção apenas preenche data_desvinculo (preserva histórico).
+/// Grupo dentro da turma (laboratório, recuperação…) — destino SUBGRUPO (lote 9).
+model GrupoTurma {
+  id       String   @id @default(uuid(7)) @db.Uuid
+  turmaId  String   @map("turma_id") @db.Uuid
+  nome     String
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  turma   Turma         @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  membros GrupoMembro[]
+
+  @@unique([turmaId, nome])
+  @@map("grupos")
+  @@schema("turmas")
+}
+
+model GrupoMembro {
+  id      String @id @default(uuid(7)) @db.Uuid
+  grupoId String @map("grupo_id") @db.Uuid
+  /// Referência a iam.usuarios (sem FK).
+  alunoId String @map("aluno_id") @db.Uuid
+
+  grupo GrupoTurma @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+
+  @@unique([grupoId, alunoId])
+  @@index([alunoId])
+  @@map("grupo_membros")
+  @@schema("turmas")
+}
+
+/// Índice único PARCIAL fora do schema (o Prisma não o representa): matriculas_ativa_turma_aluno_key
+/// em (turma_id, aluno_id) WHERE data_desvinculo IS NULL — migration 20261024120000. Se um
+/// `prisma migrate dev` propuser DROP INDEX desse nome, remova o DROP da migration gerada.
+model Matricula {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  turmaId        String    @map("turma_id") @db.Uuid
+  /// Referência a iam.usuarios (sem FK — outro schema).
+  alunoId        String    @map("aluno_id") @db.Uuid
+  dataVinculo    DateTime  @default(now()) @map("data_vinculo") @db.Timestamptz(3)
+  dataDesvinculo DateTime? @map("data_desvinculo") @db.Timestamptz(3)
+
+  turma Turma @relation(fields: [turmaId], references: [id])
+
+  @@index([turmaId])
+  @@index([alunoId])
+  @@map("matriculas")
+  @@schema("turmas")
+}
+
+// ============================================================================
+// Schema: questoes — banco de questões versionado (RF04)
+// ============================================================================
+
+enum Dificuldade {
+  FACIL
+  MEDIO
+  DIFICIL
+
+  @@schema("questoes")
+}
+
+enum NaturezaQuestao {
+  /// Correção automática (múltipla escolha com uma alternativa correta).
+  FECHADA
+  /// Correção manual obrigatória.
+  ABERTA
+
+  @@schema("questoes")
+}
+
+/// Formato da questão (Inventário de Dados, Tabela 2: alternativa, V/F, texto esperado).
+enum FormatoQuestao {
+  MULTIPLA_ESCOLHA
+  VERDADEIRO_FALSO
+  /// Fechada: resposta curta comparada com as respostas aceitas (normalizadas).
+  RESPOSTA_CURTA
+  /// Aberta: correção manual.
+  DISSERTATIVA
+  /// Fechada: várias alternativas corretas, pontuação parcial (lote 7).
+  MULTIPLA_RESPOSTA
+  /// Fechada: número com tolerância (lote 7).
+  RESPOSTA_NUMERICA
+  /// Fechada: associar itens da coluna A a opções da coluna B (lote 8).
+  ASSOCIACAO
+  /// Fechada: colocar itens na ordem correta (lote 8).
+  ORDENACAO
+
+  @@schema("questoes")
+}
+
+enum StatusQuestao {
+  RASCUNHO
+  EM_REVISAO
+  PUBLICADA
+  ARQUIVADA
+
+  @@schema("questoes")
+}
+
+enum TipoMidia {
+  IMAGEM
+  AUDIO
+  FORMULA
+
+  @@schema("questoes")
+}
+
+model Questao {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  /// Referência a iam.usuarios (sem FK — outro schema).
+  autorId           String          @map("autor_id") @db.Uuid
+  disciplina        String
+  /// Tópico em texto livre (simplificação do MVP — ver ADR-0016).
+  topico            String?
+  dificuldade       Dificuldade
+  natureza          NaturezaQuestao
+  formato           FormatoQuestao  @default(MULTIPLA_ESCOLHA)
+  /// Questão de alto risco/certificação: edição depois de publicada exige nova aprovação (RF04).
+  altoRisco         Boolean         @default(false) @map("alto_risco")
+  statusAtual       StatusQuestao   @default(RASCUNHO) @map("status_atual")
+  /// Comentário do validador na última rejeição.
+  comentarioRevisao String?         @map("comentario_revisao")
+  /// Referência a iam.usuarios — quem aprovou/rejeitou por último.
+  revisadoPorId     String?         @map("revisado_por_id") @db.Uuid
+  publicadaEm       DateTime?       @map("publicada_em") @db.Timestamptz(3)
+  criadoEm          DateTime        @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm      DateTime        @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  versoes VersaoQuestao[]
+
+  @@index([autorId])
+  @@index([disciplina, statusAtual])
+  @@map("questoes")
+  @@schema("questoes")
+}
+
+/// Versão do conteúdo de uma questão. Versão de questão já publicada é imutável;
+/// provas referenciam a VERSÃO, não a questão.
+model VersaoQuestao {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  questaoId    String   @map("questao_id") @db.Uuid
+  numeroVersao Int      @map("numero_versao")
+  enunciado    String
+  /// Questões fechadas: [{ id, texto }].
+  alternativas Json?
+  /// Questões fechadas: { alternativaId }.
+  gabarito     Json?
+  /// Questões abertas: { criterios }.
+  rubrica      Json?
+  criadoPorId  String   @map("criado_por_id") @db.Uuid
+  /// Nova versão de questão de alto risco aguardando aprovação; não é usada em provas até aprovada.
+  pendente     Boolean  @default(false)
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  questao Questao @relation(fields: [questaoId], references: [id])
+  midias  Midia[]
+
+  @@unique([questaoId, numeroVersao])
+  @@map("versoes_questao")
+  @@schema("questoes")
+}
+
+/// Arquivo de mídia (imagem/áudio) — guardado em volume local (plano: MinIO adiado).
+/// Enviado antes de salvar a questão (versão nula) e vinculado à versão ao salvar.
+model Midia {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  versaoQuestaoId String?   @map("versao_questao_id") @db.Uuid
+  tipo            TipoMidia
+  /// Nome do arquivo no volume: 32 hex aleatórios (URL de capacidade — ADR-0032).
+  arquivo         String
+  mime            String
+  tamanho         Int
+  nomeOriginal    String    @map("nome_original")
+  enviadoPorId    String    @map("enviado_por_id") @db.Uuid
+  criadoEm        DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  versaoQuestao VersaoQuestao? @relation(fields: [versaoQuestaoId], references: [id])
+
+  @@index([versaoQuestaoId])
+  @@index([arquivo])
+  @@map("midias")
+  @@schema("questoes")
+}
+
+// ============================================================================
+// Schema: provas — composição de provas (RF05)
+// ============================================================================
+
+enum Visibilidade {
+  PUBLICA
+  PRIVADA
+
+  @@schema("provas")
+}
+
+enum ModoNavegacao {
+  SEQUENCIAL
+  LIVRE
+
+  @@schema("provas")
+}
+
+enum OrdemQuestoes {
+  FIXA
+  RANDOMIZADA
+
+  @@schema("provas")
+}
+
+/// Quando o aluno vê o gabarito no resultado (política configurável — Seção 2 dos requisitos).
+enum ExibicaoGabarito {
+  NUNCA
+  APOS_CORRECAO
+  APOS_ENCERRAMENTO
+
+  @@schema("provas")
+}
+
+enum StatusProva {
+  RASCUNHO
+  PUBLICADA
+  ARQUIVADA
+
+  @@schema("provas")
+}
+
+model Prova {
+  id                   String           @id @default(uuid(7)) @db.Uuid
+  /// Referência a iam.usuarios (sem FK — outro schema).
+  autorId              String           @map("autor_id") @db.Uuid
+  titulo               String
+  descricao            String?
+  status               StatusProva      @default(RASCUNHO)
+  visibilidade         Visibilidade     @default(PRIVADA)
+  /// { "tipo": "NOTA_MINIMA", "valor": 6 } | { "tipo": "NENHUM" } — nota em escala 0–10.
+  criterioAprovacao    Json             @map("criterio_aprovacao")
+  /// Duração máxima da tentativa em minutos (null = sem limite, vale a janela).
+  tempoLimiteMin       Int?             @map("tempo_limite_min")
+  tentativasPermitidas Int              @default(1) @map("tentativas_permitidas")
+  modoNavegacao        ModoNavegacao    @default(LIVRE) @map("modo_navegacao")
+  ordemQuestoes        OrdemQuestoes    @default(FIXA) @map("ordem_questoes")
+  /// Prova crítica: o aluno precisa ter a verificação em 2 etapas ativa (RNF05 — escalonável).
+  exigeMfa             Boolean          @default(false) @map("exige_mfa")
+  exibirGabarito       ExibicaoGabarito @default(NUNCA) @map("exibir_gabarito")
+  /// Dias após a publicação do resultado para abrir recurso (null = sem prazo).
+  prazoRecursoDias     Int?             @map("prazo_recurso_dias")
+  /// Corretores não veem o nome do participante até o resultado consolidar (lote 8).
+  correcaoAsCegas      Boolean          @default(false) @map("correcao_as_cegas")
+  /// Dupla correção das dissertativas: duas pessoas corrigem; divergência acima do limiar vai para arbitragem (lote 9).
+  correcaoDupla        Boolean          @default(false) @map("correcao_dupla")
+  /// Divergência máxima (pontos percentuais) entre as duas correções antes de exigir arbitragem.
+  limiarDivergencia    Int              @default(20) @map("limiar_divergencia")
+  /// Sugestão de nota por IA para quem corrige (opcional; exige chave configurada no servidor — lote 9).
+  sugestaoIa           Boolean          @default(false) @map("sugestao_ia")
+  /// Tempo por questão em segundos (só navegação sequencial — lote 9). null = sem limite por questão.
+  tempoPorQuestaoSeg   Int?             @map("tempo_por_questao_seg")
+  publicadaEm          DateTime?        @map("publicada_em") @db.Timestamptz(3)
+  criadoEm             DateTime         @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm         DateTime         @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  questoes   ProvaQuestao[]
+  secoes     SecaoProva[]
+  corretores ProvaCorretor[]
+
+  @@index([autorId])
+  @@map("provas")
+  @@schema("provas")
+}
+
+/// Questão (em uma versão específica) incluída numa prova, com peso (%) e ordem.
+enum ModoSecao {
+  /// Todas as questões da seção, com peso individual.
+  FIXA
+  /// Sorteia `sortear` questões do conjunto para cada participante (peso da seção dividido igualmente).
+  SORTEIO
+
+  @@schema("provas")
+}
+
+/// Seção da prova (lote 8): agrupa questões, permite sorteio e nota mínima própria.
+model SecaoProva {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  provaId        String    @map("prova_id") @db.Uuid
+  titulo         String
+  ordem          Int
+  modo           ModoSecao @default(FIXA)
+  /// SORTEIO: quantas questões cada participante recebe.
+  sortear        Int?
+  /// SORTEIO: peso total da seção (pontos percentuais).
+  peso           Decimal?  @db.Decimal(6, 2)
+  /// Nota mínima (0–10) na seção para aprovação, além do critério geral.
+  notaMinima     Decimal?  @map("nota_minima") @db.Decimal(4, 2)
+  /// SORTEIO estratificado: { "FACIL": 1, "MEDIO": 2, "DIFICIL": 1 } (soma = sortear — lote 9).
+  porDificuldade Json?     @map("por_dificuldade")
+
+  prova    Prova          @relation(fields: [provaId], references: [id], onDelete: Cascade)
+  questoes ProvaQuestao[]
+
+  @@unique([provaId, ordem])
+  @@map("secoes")
+  @@schema("provas")
+}
+
+/// Corretores designados (lote 8): havendo designação, só eles (além do autor e da gestão) corrigem.
+model ProvaCorretor {
+  id        String @id @default(uuid(7)) @db.Uuid
+  provaId   String @map("prova_id") @db.Uuid
+  /// Referência a iam.usuarios (sem FK — outro schema).
+  usuarioId String @map("usuario_id") @db.Uuid
+
+  prova Prova @relation(fields: [provaId], references: [id], onDelete: Cascade)
+
+  @@unique([provaId, usuarioId])
+  @@index([usuarioId])
+  @@map("prova_corretores")
+  @@schema("provas")
+}
+
+model ProvaQuestao {
+  id              String  @id @default(uuid(7)) @db.Uuid
+  provaId         String  @map("prova_id") @db.Uuid
+  /// Seção (null = prova sem seções).
+  secaoId         String? @map("secao_id") @db.Uuid
+  /// Referência a questoes.versoes_questao (sem FK — outro schema).
+  versaoQuestaoId String  @map("versao_questao_id") @db.Uuid
+  ordem           Int
+  /// Peso em pontos percentuais; a soma deve fechar 100 para publicar.
+  peso            Decimal @db.Decimal(6, 2)
+
+  prova Prova       @relation(fields: [provaId], references: [id], onDelete: Cascade)
+  secao SecaoProva? @relation(fields: [secaoId], references: [id], onDelete: Cascade)
+
+  @@unique([provaId, versaoQuestaoId])
+  @@map("prova_questoes")
+  @@schema("provas")
+}
+
+// ============================================================================
+// Schema: aplicacao — aplicação/execução de provas (RF06)
+// ============================================================================
+
+enum DestinoTipo {
+  TURMA
+  SUBGRUPO
+  ALUNO_AVULSO
+  PUBLICO
+
+  @@schema("aplicacao")
+}
+
+enum StatusTentativa {
+  EM_ANDAMENTO
+  ENVIADA
+  /// Enviada automaticamente pelo servidor ao fim do prazo.
+  EXPIRADA
+  /// Reaberta por ação administrativa com justificativa (RN-40).
+  REABERTA
+  INVALIDADA
+
+  @@schema("aplicacao")
+}
+
+model Aplicacao {
+  id           String      @id @default(uuid(7)) @db.Uuid
+  /// Referência a provas.provas (sem FK — outro schema).
+  provaId      String      @map("prova_id") @db.Uuid
+  /// Referência a turmas.turmas quando destino_tipo = TURMA/SUBGRUPO (sem FK).
+  turmaId      String?     @map("turma_id") @db.Uuid
+  /// Referência a turmas.grupos quando destino_tipo = SUBGRUPO (lote 9, sem FK).
+  grupoId      String?     @map("grupo_id") @db.Uuid
+  destinoTipo  DestinoTipo @map("destino_tipo")
+  janelaInicio DateTime    @map("janela_inicio") @db.Timestamptz(3)
+  janelaFim    DateTime    @map("janela_fim") @db.Timestamptz(3)
+  /// Código de acesso de prova pública (código de sala — ver ADR-0016).
+  pinAcesso    String?     @unique @map("pin_acesso")
+  criadoPorId  String      @map("criado_por_id") @db.Uuid
+  criadoEm     DateTime    @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  instancias Instancia[]
+  alunos     AplicacaoAluno[]
+
+  @@index([provaId])
+  @@index([turmaId])
+  @@map("aplicacoes")
+  @@schema("aplicacao")
+}
+
+/// Versão congelada da prova para um participante (ordem, conteúdo e gabarito fixados).
+/// Destino ALUNO_AVULSO: alunos escolhidos individualmente (lote 7).
+model AplicacaoAluno {
+  id          String @id @default(uuid(7)) @db.Uuid
+  aplicacaoId String @map("aplicacao_id") @db.Uuid
+  /// Referência a iam.usuarios (sem FK — outro schema).
+  alunoId     String @map("aluno_id") @db.Uuid
+
+  aplicacao Aplicacao @relation(fields: [aplicacaoId], references: [id], onDelete: Cascade)
+
+  @@unique([aplicacaoId, alunoId])
+  @@index([alunoId])
+  @@map("aplicacao_alunos")
+  @@schema("aplicacao")
+}
+
+model Instancia {
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  aplicacaoId         String   @map("aplicacao_id") @db.Uuid
+  /// Referência a iam.usuarios; null para participante externo de prova pública.
+  participanteId      String?  @map("participante_id") @db.Uuid
+  /// `u:<usuarioId>` ou `e:<email>` — garante uma instância por participante.
+  participanteChave   String   @map("participante_chave")
+  /// Prova pública sem login: { nome, email }.
+  identificacaoMinima Json?    @map("identificacao_minima")
+  questoesFixadas     Json     @map("questoes_fixadas")
+  gabaritoCongelado   Json     @map("gabarito_congelado")
+  criadoEm            DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  aplicacao  Aplicacao   @relation(fields: [aplicacaoId], references: [id])
+  tentativas Tentativa[]
+
+  @@unique([aplicacaoId, participanteChave])
+  @@index([participanteId])
+  @@map("instancias")
+  @@schema("aplicacao")
+}
+
+model Tentativa {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  instanciaId       String          @map("instancia_id") @db.Uuid
+  numero            Int
+  status            StatusTentativa @default(EM_ANDAMENTO)
+  /// Timestamps sempre definidos pelo servidor (RNF03).
+  inicioEm          DateTime        @default(now()) @map("inicio_em") @db.Timestamptz(3)
+  /// Prazo final calculado no servidor — fonte da verdade do cronômetro.
+  prazoEm           DateTime        @map("prazo_em") @db.Timestamptz(3)
+  fimEm             DateTime?       @map("fim_em") @db.Timestamptz(3)
+  comprovanteCodigo String?         @map("comprovante_codigo")
+  /// Sessão única (RF06): só o dispositivo/aba com este identificador grava respostas.
+  sessaoExecucao    String?         @map("sessao_execucao")
+  /// Quantas vezes a prova foi assumida por outro dispositivo/aba (sinal de integridade).
+  trocasSessao      Int             @default(0) @map("trocas_sessao")
+  /// Vezes que o participante saiu da aba/janela da prova (RF06 — eventos relevantes).
+  saidasDeFoco      Int             @default(0) @map("saidas_de_foco")
+  /// Tempo por questão (lote 9): índice da questão em curso e quando ela começou.
+  indiceAtual       Int             @default(0) @map("indice_atual")
+  questaoDesde      DateTime?       @map("questao_desde") @db.Timestamptz(3)
+
+  instancia Instancia         @relation(fields: [instanciaId], references: [id])
+  respostas Resposta[]
+  eventos   EventoTentativa[]
+
+  @@unique([instanciaId, numero])
+  @@index([status, prazoEm])
+  @@map("tentativas")
+  @@schema("aplicacao")
+}
+
+enum TipoEventoTentativa {
+  SAIU_DA_PROVA
+  VOLTOU_A_PROVA
+
+  @@schema("aplicacao")
+}
+
+/// Eventos de comportamento durante a tentativa (sinal para o professor, não bloqueia nada).
+model EventoTentativa {
+  id          String              @id @default(uuid(7)) @db.Uuid
+  tentativaId String              @map("tentativa_id") @db.Uuid
+  tipo        TipoEventoTentativa
+  /// Horário informado pelo navegador (ordem relativa); recebidoEm é o do servidor.
+  ocorridoEm  DateTime            @map("ocorrido_em") @db.Timestamptz(3)
+  recebidoEm  DateTime            @default(now()) @map("recebido_em") @db.Timestamptz(3)
+
+  tentativa Tentativa @relation(fields: [tentativaId], references: [id])
+
+  @@index([tentativaId, ocorridoEm])
+  @@map("eventos_tentativa")
+  @@schema("aplicacao")
+}
+
+model Resposta {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tentativaId     String   @map("tentativa_id") @db.Uuid
+  /// Referência a questoes.versoes_questao (sem FK — outro schema).
+  versaoQuestaoId String   @map("versao_questao_id") @db.Uuid
+  /// Fechada: { alternativaId } · Aberta: { texto }
+  valor           Json
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  tentativa Tentativa @relation(fields: [tentativaId], references: [id])
+
+  /// Autosave faz upsert por (tentativa, questão).
+  @@unique([tentativaId, versaoQuestaoId])
+  @@map("respostas")
+  @@schema("aplicacao")
+}
+
+// ============================================================================
+// Schema: correcao — correção, notas e anulações (RF07, RF08)
+// ============================================================================
+
+enum StatusNota {
+  /// Prova com questão aberta ainda sem correção manual (bloqueia consolidação).
+  PENDENTE_CORRECAO_MANUAL
+  CONSOLIDADA
+
+  @@schema("correcao")
+}
+
+enum StatusAprovacao {
+  APROVADO
+  REPROVADO
+  SEM_CRITERIO
+
+  @@schema("correcao")
+}
+
+enum PoliticaAnulacao {
+  /// Todos recebem a pontuação integral da questão.
+  PONTUAR_TODOS
+  /// A questão sai do total; a nota é recalculada sobre as demais.
+  REMOVER_DO_TOTAL
+
+  @@schema("correcao")
+}
+
+/// Resultado de uma tentativa. Guarda um snapshot do contexto (prova, participante)
+/// para que correção, relatórios e recursos não dependam de outros schemas.
+model Nota {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  /// Referências a aplicacao.tentativas / aplicacoes, provas.provas, turmas.turmas, iam.usuarios (sem FK).
+  tentativaId       String           @unique @map("tentativa_id") @db.Uuid
+  aplicacaoId       String           @map("aplicacao_id") @db.Uuid
+  provaId           String           @map("prova_id") @db.Uuid
+  turmaId           String?          @map("turma_id") @db.Uuid
+  usuarioId         String?          @map("usuario_id") @db.Uuid
+  provaTitulo       String           @map("prova_titulo")
+  participanteNome  String           @map("participante_nome")
+  participanteEmail String           @map("participante_email")
+  tentativaNumero   Int              @map("tentativa_numero")
+  /// false para provas públicas sem login (resultado não certificado — RF05).
+  certificado       Boolean          @default(true)
+  criterioAprovacao Json             @map("criterio_aprovacao")
+  inicioEm          DateTime         @map("inicio_em") @db.Timestamptz(3)
+  fimEm             DateTime         @map("fim_em") @db.Timestamptz(3)
+  status            StatusNota       @default(PENDENTE_CORRECAO_MANUAL)
+  notaProvisoria    Decimal?         @map("nota_provisoria") @db.Decimal(6, 2)
+  notaFinal         Decimal?         @map("nota_final") @db.Decimal(6, 2)
+  statusAprovacao   StatusAprovacao? @map("status_aprovacao")
+  consolidadaEm     DateTime?        @map("consolidada_em") @db.Timestamptz(3)
+  /// Snapshot da política da prova: quando o gabarito fica visível ao aluno.
+  exibirGabarito    String           @default("NUNCA") @map("exibir_gabarito")
+  /// Fim da janela da aplicação (para APOS_ENCERRAMENTO).
+  janelaFim         DateTime?        @map("janela_fim") @db.Timestamptz(3)
+  /// Dias para recurso após a consolidação (null = sem prazo).
+  prazoRecursoDias  Int?             @map("prazo_recurso_dias")
+  /// Snapshot das seções: [{ id, titulo, notaMinima }] (lote 8).
+  secoes            Json?
+  /// Notas por seção calculadas: [{ id, titulo, nota, notaMinima, atingiu }].
+  notasSecao        Json?            @map("notas_secao")
+  /// Correção às cegas (snapshot da prova).
+  correcaoAsCegas   Boolean          @default(false) @map("correcao_as_cegas")
+  /// Dupla correção (snapshot — lote 9).
+  correcaoDupla     Boolean          @default(false) @map("correcao_dupla")
+  limiarDivergencia Int              @default(20) @map("limiar_divergencia")
+  criadoEm          DateTime         @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm      DateTime         @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  questoes CorrecaoQuestao[]
+
+  @@index([provaId])
+  @@index([aplicacaoId])
+  @@index([usuarioId])
+  @@index([turmaId])
+  /// Fila de correção manual: status + ordem de envio.
+  @@index([status, fimEm])
+  /// API de integração: notas consolidadas por cursor (consolidadaEm, id).
+  @@index([status, consolidadaEm, id])
+  @@map("notas")
+  @@schema("correcao")
+}
+
+/// Correção de uma questão de uma tentativa, com snapshot de enunciado, gabarito e resposta.
+model CorrecaoQuestao {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  notaId          String    @map("nota_id") @db.Uuid
+  versaoQuestaoId String    @map("versao_questao_id") @db.Uuid
+  ordem           Int
+  natureza        String
+  formato         String    @default("MULTIPLA_ESCOLHA")
+  disciplina      String    @default("")
+  peso            Decimal   @db.Decimal(6, 2)
+  enunciado       String
+  alternativas    Json?
+  gabarito        Json?
+  rubrica         Json?
+  resposta        Json?
+  /// Mídias da versão (snapshot) para exibir no resultado e na correção.
+  midias          Json?
+  /// Seção da prova (snapshot — lote 8).
+  secaoId         String?   @map("secao_id")
+  /// Pontos dados em cada critério da rubrica estruturada (lote 8).
+  avaliacaoItens  Json?     @map("avaliacao_itens")
+  /// Fração da pontuação obtida (0 a 1). null = aguardando correção manual.
+  fracao          Decimal?  @db.Decimal(5, 4)
+  automatica      Boolean   @default(false)
+  feedback        String?
+  /// Referência a iam.usuarios (sem FK).
+  corrigidoPorId  String?   @map("corrigido_por_id") @db.Uuid
+  corrigidoEm     DateTime? @map("corrigido_em") @db.Timestamptz(3)
+
+  /// Dupla correção: a questão aguarda arbitragem (divergência acima do limiar — lote 9).
+  aguardaArbitragem Boolean @default(false) @map("aguarda_arbitragem")
+
+  nota       Nota                @relation(fields: [notaId], references: [id], onDelete: Cascade)
+  avaliacoes AvaliacaoCorrecao[]
+
+  @@unique([notaId, versaoQuestaoId])
+  @@index([versaoQuestaoId])
+  @@map("correcoes_questao")
+  @@schema("correcao")
+}
+
+enum PapelAvaliacao {
+  PRIMEIRA
+  SEGUNDA
+  ARBITRAGEM
+
+  @@schema("correcao")
+}
+
+/// Avaliações individuais na dupla correção (lote 9 — ADR-0053).
+model AvaliacaoCorrecao {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  correcaoQuestaoId String         @map("correcao_questao_id") @db.Uuid
+  papel             PapelAvaliacao
+  /// Referência a iam.usuarios (sem FK).
+  corretorId        String         @map("corretor_id") @db.Uuid
+  fracao            Decimal        @db.Decimal(5, 4)
+  feedback          String?
+  avaliacaoItens    Json?          @map("avaliacao_itens")
+  criadoEm          DateTime       @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  correcaoQuestao CorrecaoQuestao @relation(fields: [correcaoQuestaoId], references: [id], onDelete: Cascade)
+
+  @@unique([correcaoQuestaoId, papel])
+  @@map("avaliacoes")
+  @@schema("correcao")
+}
+
+/// Questão anulada em uma prova (decorrente de recurso deferido) — afeta todos os participantes.
+model Anulacao {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  provaId         String           @map("prova_id") @db.Uuid
+  versaoQuestaoId String           @map("versao_questao_id") @db.Uuid
+  politica        PoliticaAnulacao
+  justificativa   String
+  criadoPorId     String           @map("criado_por_id") @db.Uuid
+  criadoEm        DateTime         @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  @@unique([provaId, versaoQuestaoId])
+  @@map("anulacoes")
+  @@schema("correcao")
+}
+
+// ============================================================================
+// Schema: recursos — contestações (RF08)
+// ============================================================================
+
+enum StatusRecurso {
+  ABERTO
+  EM_ANALISE
+  DEFERIDO
+  INDEFERIDO
+
+  @@schema("recursos")
+}
+
+model Recurso {
+  id                   String        @id @default(uuid(7)) @db.Uuid
+  /// Referências a correcao.notas, provas.provas, questoes.versoes_questao, iam.usuarios (sem FK).
+  notaId               String        @map("nota_id") @db.Uuid
+  provaId              String        @map("prova_id") @db.Uuid
+  versaoQuestaoId      String        @map("versao_questao_id") @db.Uuid
+  alunoId              String        @map("aluno_id") @db.Uuid
+  justificativa        String
+  status               StatusRecurso @default(ABERTO)
+  /// Justificativa da decisão (obrigatória ao decidir).
+  decisao              String?
+  /// Como o deferimento foi aplicado: AJUSTE_INDIVIDUAL | ANULACAO_<politica>.
+  efeito               String?
+  decididoPorId        String?       @map("decidido_por_id") @db.Uuid
+  /// Encaminhado à coordenação (lote 8): só a gestão decide.
+  encaminhadoEm        DateTime?     @map("encaminhado_em") @db.Timestamptz(3)
+  encaminhadoPorId     String?       @map("encaminhado_por_id") @db.Uuid
+  motivoEncaminhamento String?       @map("motivo_encaminhamento")
+  decididoEm           DateTime?     @map("decidido_em") @db.Timestamptz(3)
+  criadoEm             DateTime      @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm         DateTime      @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  @@unique([notaId, versaoQuestaoId])
+  @@index([provaId, status])
+  @@index([alunoId])
+  @@map("recursos")
+  @@schema("recursos")
+}
+
+// ============================================================================
+// Schema: notificacoes — notificações in-app (RF10)
+// ============================================================================
+
+model Notificacao {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  /// Referência a iam.usuarios (sem FK).
+  usuarioId String   @map("usuario_id") @db.Uuid
+  tipo      String
+  titulo    String
+  mensagem  String
+  /// Rota do frontend relacionada (ex.: /aluno/resultados/<id>).
+  link      String?
+  lida      Boolean  @default(false)
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  @@index([usuarioId, lida, criadoEm])
+  @@map("notificacoes")
+  @@schema("notificacoes")
+}
+
+/// Fila de e-mails de notificação com retentativa (lote 8). Mensagens com link de acesso
+/// (senha/convite) NÃO passam por aqui — não ficam guardadas no banco.
+model EmailPendente {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  para               String
+  assunto            String
+  texto              String
+  tentativas         Int      @default(0)
+  proximaTentativaEm DateTime @default(now()) @map("proxima_tentativa_em") @db.Timestamptz(3)
+  ultimoErro         String?  @map("ultimo_erro")
+  criadoEm           DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  @@index([proximaTentativaEm])
+  @@map("emails_pendentes")
+  @@schema("notificacoes")
+}
+
+// ============================================================================
+// Schema: auditoria — trilha imutável de ações sensíveis (RF11)
+// ============================================================================
+
+/// Somente INSERT: UPDATE/DELETE são bloqueados por trigger (migration).
+model EventoAuditoria {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  /// Referência a iam.usuarios; null para ações do sistema ou de anônimos.
+  usuarioId     String?  @map("usuario_id") @db.Uuid
+  acao          String
+  recurso       String
+  recursoId     String?  @map("recurso_id")
+  justificativa String?
+  dados         Json?
+  ip            String?
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  @@index([criadoEm])
+  @@index([recurso, recursoId])
+  @@index([usuarioId])
+  @@map("eventos")
+  @@schema("auditoria")
+}

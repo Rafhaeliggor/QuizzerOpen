@@ -1,0 +1,364 @@
+/* Homepage pública ("/" sem sessão). Usa só os tokens do design system, então segue o tema. */
+.qz-home {
+  min-height: 100vh;
+  background: var(--qz-cor-fundo);
+  color: var(--qz-cor-texto);
+}
+.qz-home__conteudo {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 var(--qz-espaco-5);
+}
+
+/* ---------- Topo ---------- */
+.qz-home__topo {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--qz-cor-superficie);
+  border-bottom: 1px solid var(--qz-cor-borda);
+}
+.qz-home__topo-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--qz-espaco-3);
+  min-height: 68px;
+}
+.qz-home__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--qz-espaco-4);
+}
+.qz-home__nav a:not(.qz-botao) {
+  color: var(--qz-cor-texto-suave);
+  font-weight: 600;
+  text-decoration: none;
+}
+.qz-home__nav a:not(.qz-botao):hover {
+  color: var(--qz-cor-texto);
+}
+.qz-home__nav .qz-botao {
+  min-height: 38px;
+}
+
+/* ---------- Hero ---------- */
+.qz-home__hero {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: center;
+  gap: 56px;
+  padding-top: 72px;
+  padding-bottom: 72px;
+}
+.qz-home__selo {
+  display: inline-block;
+  margin-bottom: var(--qz-espaco-4);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--qz-cor-primaria-suave);
+  color: var(--qz-cor-primaria);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.qz-home__hero h1 {
+  font-size: clamp(2rem, 4.2vw, 3rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--qz-espaco-4);
+}
+.qz-home__lead {
+  margin: 0 0 var(--qz-espaco-5);
+  font-size: 1.1rem;
+  color: var(--qz-cor-texto-suave);
+  max-width: 34em;
+}
+.qz-home__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--qz-espaco-3);
+}
+.qz-home__acoes .qz-botao {
+  min-height: 46px;
+  padding: 0 var(--qz-espaco-5);
+}
+.qz-home__pin {
+  margin: var(--qz-espaco-4) 0 0;
+  font-size: 0.92rem;
+  color: var(--qz-cor-texto-suave);
+}
+
+/* Ilustração: questão da prova */
+.qz-home__mini {
+  padding: var(--qz-espaco-5);
+  border: 1px solid var(--qz-cor-borda);
+  border-radius: 16px;
+  background: var(--qz-cor-superficie);
+  box-shadow: 0 24px 48px -24px rgb(40 36 120 / 28%);
+}
+.qz-home__mini-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-home__mini-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--qz-cor-neutra-suave);
+  color: var(--qz-cor-texto);
+  font-variant-numeric: tabular-nums;
+}
+.qz-home__mini-barra {
+  height: 6px;
+  margin: var(--qz-espaco-3) 0 var(--qz-espaco-4);
+  border-radius: 999px;
+  background: var(--qz-cor-trilho);
+  overflow: hidden;
+}
+.qz-home__mini-barra span {
+  display: block;
+  width: 30%;
+  height: 100%;
+  background: var(--qz-cor-primaria);
+}
+.qz-home__mini-enunciado {
+  margin: 0 0 var(--qz-espaco-4);
+  font-weight: 600;
+}
+.qz-home__mini-opcoes {
+  display: grid;
+  gap: var(--qz-espaco-2);
+  margin: 0 0 var(--qz-espaco-4);
+  padding: 0;
+  list-style: none;
+}
+.qz-home__mini-opcoes li {
+  display: flex;
+  align-items: center;
+  gap: var(--qz-espaco-3);
+  padding: 10px 12px;
+  border: 1px solid var(--qz-cor-borda);
+  border-radius: var(--qz-raio-pequeno);
+}
+.qz-home__mini-opcoes li span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--qz-cor-borda-forte);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-home__mini-opcoes li.is-marcada {
+  border-color: var(--qz-cor-primaria);
+  background: var(--qz-cor-primaria-suave);
+}
+.qz-home__mini-opcoes li.is-marcada span {
+  border-color: var(--qz-cor-primaria);
+  background: var(--qz-cor-primaria);
+  color: var(--qz-cor-sobre-destaque);
+}
+.qz-home__mini-rodape {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.qz-home__mini-rodape .qz-botao {
+  min-height: 36px;
+  cursor: default;
+}
+.qz-home__mini-salvo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--qz-cor-sucesso);
+}
+
+/* ---------- Seções ---------- */
+.qz-home__secao {
+  padding: 72px 0;
+}
+.qz-home__secao--alternada {
+  background: var(--qz-cor-superficie);
+  border-top: 1px solid var(--qz-cor-borda);
+  border-bottom: 1px solid var(--qz-cor-borda);
+}
+.qz-home__secao h2,
+.qz-home__chamada h2 {
+  font-size: clamp(1.5rem, 2.6vw, 1.9rem);
+  text-align: center;
+}
+.qz-home__subtitulo {
+  margin: 0 auto;
+  max-width: 36em;
+  text-align: center;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-home__grade {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--qz-espaco-4);
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.qz-home__cartao {
+  padding: var(--qz-espaco-5);
+  border: 1px solid var(--qz-cor-borda);
+  border-radius: var(--qz-raio);
+  background: var(--qz-cor-superficie);
+}
+.qz-home__cartao h3 {
+  margin: var(--qz-espaco-3) 0 var(--qz-espaco-2);
+}
+.qz-home__cartao p {
+  margin: 0;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-home__icone {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--qz-cor-primaria-suave);
+  color: var(--qz-cor-primaria);
+}
+
+.qz-home__passos {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--qz-espaco-5);
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.qz-home__passos h3 {
+  margin: var(--qz-espaco-3) 0 var(--qz-espaco-1);
+}
+.qz-home__passos p {
+  margin: 0;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-home__numero {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--qz-cor-primaria);
+  color: var(--qz-cor-sobre-destaque);
+  font-weight: 700;
+}
+
+.qz-home__perfis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--qz-espaco-4);
+  margin-top: 40px;
+}
+.qz-home__perfis .qz-home__cartao {
+  display: flex;
+  flex-direction: column;
+}
+.qz-home__lista {
+  flex: 1;
+  margin: 0 0 var(--qz-espaco-4);
+  padding-left: 1.1em;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-home__lista li + li {
+  margin-top: 4px;
+}
+.qz-home__perfis a {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.qz-home__seguranca {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--qz-espaco-5);
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.qz-home__seguranca li {
+  display: flex;
+  gap: var(--qz-espaco-3);
+}
+.qz-home__seguranca .qz-icone {
+  margin-top: 2px;
+  color: var(--qz-cor-primaria);
+}
+.qz-home__seguranca p {
+  margin: 2px 0 0;
+  font-size: 0.92rem;
+  color: var(--qz-cor-texto-suave);
+}
+
+.qz-home__chamada {
+  padding-top: 72px;
+  padding-bottom: 72px;
+  text-align: center;
+}
+.qz-home__chamada .qz-home__acoes {
+  justify-content: center;
+  margin-top: var(--qz-espaco-4);
+}
+
+/* ---------- Rodapé ---------- */
+.qz-home__rodape {
+  border-top: 1px solid var(--qz-cor-borda);
+  background: var(--qz-cor-superficie);
+  font-size: 0.87rem;
+  color: var(--qz-cor-texto-suave);
+}
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 960px) {
+  .qz-home__hero {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding-top: 48px;
+    padding-bottom: 48px;
+  }
+  .qz-home__grade,
+  .qz-home__perfis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .qz-home__passos,
+  .qz-home__seguranca {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .qz-home__conteudo {
+    padding: 0 var(--qz-espaco-4);
+  }
+  .qz-home__nav a:not(.qz-botao) {
+    display: none;
+  }
+  .qz-home__secao,
+  .qz-home__chamada {
+    padding-top: 48px;
+    padding-bottom: 48px;
+  }
+  .qz-home__grade,
+  .qz-home__perfis,
+  .qz-home__passos,
+  .qz-home__seguranca {
+    grid-template-columns: 1fr;
+  }
+}

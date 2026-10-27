@@ -1,0 +1,19 @@
+# Contexto http: zonas e upstream compartilhados pelos dois modos.
+# Proteção grosseira contra flood nas rotas de login/MFA, por IP. O limite é ALTO
+# de propósito: uma turma inteira entra pela mesma rede (mesmo IP via NAT) — ver ADR-0011.
+limit_req_zone $binary_remote_addr zone=login:10m rate=300r/m;
+limit_req_status 429;
+
+# HSTS só em HTTPS. O valor vazio (HTTP) faz o Nginx omitir o cabeçalho. Fica no snippet de
+# segurança porque add_header numa location anula os herdados do server.
+# "preload" só com HSTS_PRELOAD=true (ADR-0055): vale apenas para domínio próprio registrável;
+# num subdomínio da instituição a inscrição na lista é feita pelo domínio principal.
+map $scheme $cabecalho_hsts {
+    https   "max-age=31536000; includeSubDomains${HSTS_SUFIXO}";
+    default "";
+}
+
+upstream api {
+    server ${API_UPSTREAM};
+    keepalive 16;
+}

@@ -1,0 +1,211 @@
+/*
+ * Tokens do design system (RNF04). Todos os componentes usam estas variáveis —
+ * mudar a identidade visual = mudar apenas este bloco.
+ * Valores extraídos das telas do Figma (docs/design/figma/, ADR-0053).
+ */
+:root {
+  --qz-fonte: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --qz-fonte-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --qz-cor-fundo: #f5f6fa;
+  --qz-cor-superficie: #ffffff;
+  --qz-cor-borda: #e4e6ee;
+  --qz-cor-borda-forte: #d6d9e3;
+  --qz-cor-texto: #1f2335;
+  --qz-cor-texto-suave: #6b7183;
+  --qz-cor-primaria: #5a50dc;
+  --qz-cor-primaria-escura: #4a40c8;
+  --qz-cor-primaria-suave: #eeedfc;
+  --qz-cor-primaria-clara: #c7c3f3;
+
+  --qz-cor-sucesso: #1f7a52;
+  --qz-cor-sucesso-suave: #e7f5ee;
+  --qz-cor-alerta: #9a6212;
+  --qz-cor-alerta-suave: #fdf3de;
+  --qz-cor-erro: #c0393b;
+  --qz-cor-erro-suave: #fdecec;
+  --qz-cor-info: var(--qz-cor-primaria);
+  --qz-cor-info-suave: var(--qz-cor-primaria-suave);
+  --qz-cor-neutra-suave: #f0f1f5;
+  /* Texto sobre fundo de cor sólida (botão primário, letra marcada, contador) */
+  --qz-cor-sobre-destaque: #ffffff;
+  --qz-cor-hover: #fafbfc;
+  --qz-cor-cabecalho-tabela: #f3f4f8;
+  --qz-cor-placeholder: #9298a8;
+  --qz-cor-trilho: #e3e5ec;
+  /* Barra de rolagem: só o polegar, sem trilho nem setas */
+  --qz-cor-rolagem: #c9ccd8;
+  --qz-cor-rolagem-hover: #a7acbd;
+
+  --qz-raio: 12px;
+  --qz-raio-pequeno: 8px;
+  --qz-sombra: 0 1px 2px rgb(16 24 40 / 4%);
+  --qz-espaco-1: 4px;
+  --qz-espaco-2: 8px;
+  --qz-espaco-3: 12px;
+  --qz-espaco-4: 16px;
+  --qz-espaco-5: 24px;
+  --qz-espaco-6: 32px;
+
+  --qz-largura-sidebar: 236px;
+  --qz-altura-navbar: 76px;
+
+  font-family: var(--qz-fonte);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--qz-cor-texto);
+  background: var(--qz-cor-fundo);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11';
+  color-scheme: light;
+}
+
+/*
+ * Tema escuro: segue o sistema por padrão; a escolha em Configurações > Aparência grava
+ * data-tema no <html> (claro/escuro). Só na tela — a impressão continua clara.
+ */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']) {
+    --qz-cor-fundo: #12141b;
+    --qz-cor-superficie: #1a1d27;
+    --qz-cor-borda: #2c303f;
+    --qz-cor-borda-forte: #3b4052;
+    --qz-cor-texto: #e6e8f0;
+    --qz-cor-texto-suave: #a3a9ba;
+    --qz-cor-primaria: #8f88f2;
+    --qz-cor-primaria-escura: #a59ff5;
+    --qz-cor-primaria-suave: #2b2950;
+    --qz-cor-primaria-clara: #4b4691;
+    --qz-cor-sucesso: #4fc08d;
+    --qz-cor-sucesso-suave: #17352a;
+    --qz-cor-alerta: #e2aa4f;
+    --qz-cor-alerta-suave: #3a2f17;
+    --qz-cor-erro: #f27a7a;
+    --qz-cor-erro-suave: #3e2124;
+    --qz-cor-neutra-suave: #252937;
+    --qz-cor-sobre-destaque: #12141b;
+    --qz-cor-hover: #21252f;
+    --qz-cor-cabecalho-tabela: #232734;
+    --qz-cor-placeholder: #6f7588;
+    --qz-cor-trilho: #3b4052;
+    --qz-cor-rolagem: #3b4052;
+    --qz-cor-rolagem-hover: #555b70;
+    --qz-sombra: 0 1px 2px rgb(0 0 0 / 35%);
+    color-scheme: dark;
+  }
+}
+@media screen {
+  :root[data-tema='escuro'] {
+    --qz-cor-fundo: #12141b;
+    --qz-cor-superficie: #1a1d27;
+    --qz-cor-borda: #2c303f;
+    --qz-cor-borda-forte: #3b4052;
+    --qz-cor-texto: #e6e8f0;
+    --qz-cor-texto-suave: #a3a9ba;
+    --qz-cor-primaria: #8f88f2;
+    --qz-cor-primaria-escura: #a59ff5;
+    --qz-cor-primaria-suave: #2b2950;
+    --qz-cor-primaria-clara: #4b4691;
+    --qz-cor-sucesso: #4fc08d;
+    --qz-cor-sucesso-suave: #17352a;
+    --qz-cor-alerta: #e2aa4f;
+    --qz-cor-alerta-suave: #3a2f17;
+    --qz-cor-erro: #f27a7a;
+    --qz-cor-erro-suave: #3e2124;
+    --qz-cor-neutra-suave: #252937;
+    --qz-cor-sobre-destaque: #12141b;
+    --qz-cor-hover: #21252f;
+    --qz-cor-cabecalho-tabela: #232734;
+    --qz-cor-placeholder: #6f7588;
+    --qz-cor-trilho: #3b4052;
+    --qz-cor-rolagem: #3b4052;
+    --qz-cor-rolagem-hover: #555b70;
+    --qz-sombra: 0 1px 2px rgb(0 0 0 / 35%);
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--qz-cor-fundo);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 var(--qz-espaco-3);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 1.95rem;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+a {
+  color: var(--qz-cor-primaria);
+}
+
+:focus-visible {
+  outline: 2px solid var(--qz-cor-primaria);
+  outline-offset: 2px;
+}
+
+/*
+ * Barras de rolagem minimalistas em todo o sistema: sem trilho, sem setas, só o
+ * polegar na cor do tema. WebKit/Blink usa os pseudo-elementos; o Firefox, que não
+ * os tem, usa scrollbar-color (no Chrome ela anularia os pseudo-elementos).
+ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--qz-cor-rolagem);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--qz-cor-rolagem-hover);
+  background-clip: padding-box;
+}
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--qz-cor-rolagem) transparent;
+  }
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--qz-cor-primaria);
+}

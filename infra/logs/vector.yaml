@@ -1,0 +1,36 @@
+# Centralização de logs (ADR-0054): o Docker de cada serviço envia o stdout (driver fluentd) para
+# este coletor, que grava um arquivo por serviço e por dia em /logs e, opcionalmente, encaminha
+# para fora do VPS (destinos gerados por iniciar.sh conforme LOGS_ENCAMINHAR_HTTP / LOGS_LOKI_URL).
+data_dir: /var/lib/vector
+
+api:
+  enabled: true
+  address: 127.0.0.1:8686
+
+sources:
+  docker:
+    type: fluent
+    address: 0.0.0.0:24224
+
+transforms:
+  normalizado:
+    type: remap
+    inputs: [docker]
+    source: |
+      .servico = replace(string(.container_name) ?? "desconhecido", r'^/', "")
+      .servico = replace(.servico, r'^quizzer-', "")
+      .servico = replace(.servico, r'-[0-9]+$', "")
+      # A API, o backup e o monitor já escrevem JSON: vira objeto; o resto fica como texto.
+      .mensagem = parse_json(string(.log) ?? "") ?? .log
+      del(.log)
+      del(.container_id)
+      del(.container_name)
+      del(.source)
+
+sinks:
+  arquivos:
+    type: file
+    inputs: [normalizado]
+    path: "/logs/%Y-%m-%d/{{ servico }}.log"
+    encoding:
+      codec: json

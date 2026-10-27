@@ -1,0 +1,40 @@
+#!/bin/sh
+# Escolhe o modelo do Nginx conforme TLS_MODO (desligado | autoassinado | letsencrypt).
+# Se o certificado esperado não existir, cai para HTTP com aviso em vez de não subir.
+# É um .envsh: o entrypoint oficial o carrega com "source", então os export chegam ao envsubst.
+# (Por isso não usa "set -eu", que vazaria para os scripts seguintes.)
+
+MODO="${TLS_MODO:-desligado}"
+case "$MODO" in
+  autoassinado)
+    export TLS_CERTIFICADO="/etc/nginx/certs/autoassinado/fullchain.pem"
+    export TLS_CHAVE="/etc/nginx/certs/autoassinado/privkey.pem"
+    ;;
+  letsencrypt)
+    if [ -z "${TLS_DOMINIO:-}" ]; then echo "[tls] TLS_DOMINIO é obrigatório com TLS_MODO=letsencrypt" >&2; exit 1; fi
+    export TLS_CERTIFICADO="/etc/letsencrypt/live/${TLS_DOMINIO}/fullchain.pem"
+    export TLS_CHAVE="/etc/letsencrypt/live/${TLS_DOMINIO}/privkey.pem"
+    ;;
+  desligado) ;;
+  *) echo "[tls] TLS_MODO inválido: $MODO (use desligado, autoassinado ou letsencrypt)" >&2; exit 1 ;;
+esac
+
+if [ "$MODO" != "desligado" ] && { [ ! -r "$TLS_CERTIFICADO" ] || [ ! -r "$TLS_CHAVE" ]; }; then
+  echo "[tls] AVISO: certificado não encontrado em $TLS_CERTIFICADO — subindo em HTTP (TLS_MODO efetivo: desligado)" >&2
+  MODO=desligado
+fi
+
+# HSTS preload opcional (ADR-0055).
+if [ "${HSTS_PRELOAD:-false}" = "true" ]; then export HSTS_SUFIXO="; preload"; else export HSTS_SUFIXO=""; fi
+
+cp /etc/nginx/modelos/00-comum.conf.template /etc/nginx/templates/00-comum.conf.template
+if [ "$MODO" = "desligado" ]; then
+  cp /etc/nginx/modelos/http.conf.template /etc/nginx/templates/default.conf.template
+else
+  # Sufixo de porta no redirecionamento quando o HTTPS público não é a 443.
+  if [ "${PORTA_HTTPS_PUBLICA:-443}" = "443" ]; then export PORTA_HTTPS_SUFIXO=""; else export PORTA_HTTPS_SUFIXO=":${PORTA_HTTPS_PUBLICA}"; fi
+  # Destino do redirecionamento HTTP→HTTPS: o domínio do certificado (letsencrypt) ou o host pedido.
+  if [ "$MODO" = "letsencrypt" ]; then export HOST_REDIRECIONAMENTO="$TLS_DOMINIO"; else export HOST_REDIRECIONAMENTO='$host'; fi
+  cp /etc/nginx/modelos/https.conf.template /etc/nginx/templates/default.conf.template
+fi
+echo "[tls] modo efetivo: $MODO"

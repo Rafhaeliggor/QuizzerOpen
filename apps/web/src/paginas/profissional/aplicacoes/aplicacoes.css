@@ -1,0 +1,42 @@
+/* Aplicações (lista e acompanhamento) — telas do Figma, ADR-0053 */
+.qz-apl-metricas {
+  margin-bottom: var(--qz-espaco-5);
+}
+.qz-apl-titulo {
+  display: block;
+  font-weight: 600;
+}
+.qz-tabela td a.qz-apl-sub-link {
+  color: var(--qz-cor-primaria);
+  font-weight: 500;
+}
+.qz-tabela td a.qz-apl-sub-link:hover {
+  text-decoration: underline;
+}
+.qz-apl-acesso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--qz-espaco-5);
+  margin-bottom: var(--qz-espaco-5);
+}
+.qz-apl-acesso .qz-pin {
+  color: var(--qz-cor-primaria);
+}
+.qz-apl-acesso__link {
+  flex: 1;
+  min-width: 220px;
+}
+.qz-apl-acesso .qz-codigo {
+  display: inline-block;
+  margin-top: 4px;
+  background: var(--qz-cor-superficie);
+  word-break: break-all;
+}
+.qz-apl-secao {
+  margin: 0 0 var(--qz-espaco-3);
+  font-size: 1.15rem;
+}
+.qz-barra-filtros > .qz-apl-seletor {
+  flex-basis: 220px;
+}

@@ -1,0 +1,82 @@
+/* Usuários (Figma 19): indicadores, filtros, tabela e papéis profissionais. */
+.qz-usr-metricas {
+  margin-bottom: var(--qz-espaco-5);
+}
+.qz-usr-metricas .qz-metrica__valor {
+  font-variant-numeric: tabular-nums;
+}
+.qz-barra-filtros > .qz-usr-seletor {
+  flex: 0 1 300px;
+}
+.qz-usr-form {
+  margin-bottom: var(--qz-espaco-5);
+}
+.qz-usr-senha {
+  font-size: 1.1rem;
+}
+.qz-tabela td a.qz-usr-acao {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--qz-raio-pequeno);
+  color: var(--qz-cor-texto-suave);
+}
+.qz-tabela td a.qz-usr-acao:hover {
+  background: var(--qz-cor-neutra-suave);
+  color: var(--qz-cor-texto);
+}
+.qz-usr-papeis {
+  margin-top: var(--qz-espaco-5);
+}
+.qz-usr-papeis dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--qz-espaco-4);
+  margin: 0;
+}
+.qz-usr-papeis dt {
+  font-weight: 600;
+}
+.qz-usr-papeis dd {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--qz-cor-texto-suave);
+}
+
+/* Detalhe do usuário */
+.qz-usr-acoes-conta {
+  margin-top: var(--qz-espaco-4);
+}
+.qz-usr-permissoes {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.qz-usr-permissoes li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--qz-espaco-3);
+  padding: 14px 0;
+  border-top: 1px solid var(--qz-cor-borda);
+}
+.qz-usr-permissoes li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.qz-usr-lateral h2 {
+  margin-bottom: 12px;
+}
+.qz-usr-lateral p {
+  margin: 12px 0 0;
+  font-size: 0.87rem;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-usr-definicoes {
+  grid-template-columns: 1fr;
+  margin-top: var(--qz-espaco-4);
+}

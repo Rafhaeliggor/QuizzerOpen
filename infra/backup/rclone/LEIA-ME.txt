@@ -1,0 +1,2 @@
+# Configuração do rclone para a cópia externa dos backups (não versionar com segredos!).
+# Gere com: docker run --rm -it -v "$PWD/infra/backup/rclone:/config/rclone" rclone/rclone config

@@ -1,0 +1,310 @@
+/* Provas (lista, assistente, montagem, detalhe) — telas do Figma, ADR-0053 */
+.qz-prv-metricas {
+  margin-bottom: var(--qz-espaco-5);
+}
+
+/* Cabeçalho de cartão com ação à direita */
+.qz-prv-cabecalho-cartao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--qz-espaco-3);
+  margin-bottom: var(--qz-espaco-4);
+}
+.qz-prv-cabecalho-cartao h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.qz-prv-info {
+  display: grid;
+  gap: var(--qz-espaco-3);
+  margin: 0;
+}
+.qz-prv-info dt {
+  font-size: 0.87rem;
+  font-weight: 600;
+}
+.qz-prv-info dd {
+  margin: 2px 0 0;
+}
+
+/* Barra com badges/contadores e botão (montagem) */
+.qz-prv-ajuda {
+  margin-top: calc(-1 * var(--qz-espaco-2));
+}
+.qz-prv-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--qz-espaco-3);
+  margin: var(--qz-espaco-4) 0;
+}
+.qz-prv-secao {
+  margin-top: var(--qz-espaco-4);
+  padding-top: var(--qz-espaco-4);
+  border-top: 1px solid var(--qz-cor-borda);
+}
+.qz-prv-secao + div {
+  margin-top: var(--qz-espaco-4);
+}
+.qz-prv-vazio {
+  margin: 0 0 var(--qz-espaco-3);
+  padding: var(--qz-espaco-5);
+  border: 1px dashed var(--qz-cor-borda-forte);
+  border-radius: var(--qz-raio-pequeno);
+  text-align: center;
+}
+
+/* Linhas numeradas de questões (montagem e revisão) */
+.qz-prv-itens {
+  list-style: none;
+  margin: 0 0 var(--qz-espaco-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--qz-espaco-3);
+}
+.qz-prv-item {
+  display: flex;
+  align-items: center;
+  gap: var(--qz-espaco-4);
+  padding: var(--qz-espaco-3) var(--qz-espaco-4);
+  border: 1px solid var(--qz-cor-borda);
+  border-radius: var(--qz-raio-pequeno);
+  background: var(--qz-cor-superficie);
+}
+.qz-prv-item__ordem {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--qz-cor-neutra-suave);
+  color: var(--qz-cor-texto-suave);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.qz-prv-item__texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.qz-prv-item__texto strong {
+  font-size: 0.93rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.qz-prv-item__texto small {
+  font-size: 0.78rem;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-prv-item__peso {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 600;
+}
+.qz-prv-item__peso small {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-prv-item__peso > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.qz-prv-item__peso .qz-input {
+  width: 84px;
+  min-height: 34px;
+  padding: 4px 8px;
+}
+.qz-prv-item__acoes {
+  display: flex;
+  gap: 2px;
+}
+.qz-prv-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--qz-raio-pequeno);
+  background: none;
+  color: var(--qz-cor-texto-suave);
+  cursor: pointer;
+}
+.qz-prv-icone:hover:not(:disabled) {
+  background: var(--qz-cor-neutra-suave);
+  color: var(--qz-cor-texto);
+}
+.qz-prv-icone--perigo:hover:not(:disabled) {
+  background: var(--qz-cor-erro-suave);
+  color: var(--qz-cor-erro);
+}
+.qz-prv-icone:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.qz-prv-girar {
+  transform: rotate(180deg);
+}
+
+/* Cartão de resumo lateral (linhas rótulo/valor) */
+.qz-prv-resumo__linhas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--qz-espaco-4);
+  margin: 0;
+}
+.qz-prv-resumo__linhas > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--qz-espaco-3);
+}
+.qz-prv-resumo__linhas dt {
+  font-size: 0.87rem;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-prv-resumo__linhas dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.qz-prv-resumo__total dd {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--qz-cor-primaria);
+}
+.qz-prv-resumo__total dd.qz-prv-resumo__alerta {
+  color: var(--qz-cor-alerta);
+}
+.qz-prv-resumo .qz-badge {
+  align-self: flex-start;
+}
+.qz-prv-resumo__titulo {
+  margin: var(--qz-espaco-4) 0 var(--qz-espaco-4);
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.qz-cartao--destaque .qz-prv-resumo__linhas dt {
+  color: var(--qz-cor-texto);
+}
+
+/* Regras (interruptores) */
+.qz-prv-regras {
+  display: flex;
+  flex-direction: column;
+  gap: var(--qz-espaco-2);
+  margin-bottom: var(--qz-espaco-3);
+}
+.qz-prv-subcampo {
+  max-width: 280px;
+  margin: calc(-1 * var(--qz-espaco-1)) 0 var(--qz-espaco-2);
+}
+
+/* Seletor de questões do banco */
+.qz-prv-banco {
+  margin-top: var(--qz-espaco-6);
+  scroll-margin-top: var(--qz-espaco-5);
+}
+.qz-prv-banco > h2 {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+}
+.qz-prv-banco > p {
+  margin: 0 0 var(--qz-espaco-4);
+}
+.qz-prv-banco .qz-cartao > h2:first-child {
+  margin-bottom: 4px;
+}
+.qz-prv-enunciado {
+  font-weight: 600;
+}
+.qz-prv-na-prova {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--qz-cor-sucesso);
+  white-space: nowrap;
+}
+.qz-prv-selecao__numero {
+  display: block;
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--qz-cor-primaria);
+}
+.qz-prv-selecao__legenda {
+  margin: 4px 0 var(--qz-espaco-4);
+  color: var(--qz-cor-primaria);
+  font-size: 0.93rem;
+}
+.qz-prv-selecao__lista {
+  list-style: none;
+  margin: 0 0 var(--qz-espaco-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--qz-espaco-2);
+  font-size: 0.87rem;
+}
+
+/* Revisão e detalhe */
+.qz-prv-secoes-resumo {
+  margin: 0 0 var(--qz-espaco-2);
+  padding-left: 20px;
+}
+.qz-prv-questoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--qz-espaco-3);
+}
+.qz-prv-questao {
+  padding: var(--qz-espaco-4);
+  border: 1px solid var(--qz-cor-borda);
+  border-radius: var(--qz-raio-pequeno);
+}
+.qz-prv-questao__topo {
+  display: flex;
+  align-items: center;
+  gap: var(--qz-espaco-3);
+  margin-bottom: var(--qz-espaco-3);
+}
+.qz-prv-secao-titulo {
+  margin: var(--qz-espaco-3) 0 var(--qz-espaco-2);
+  font-size: 1rem;
+}
+.qz-prv-parametros .qz-definicoes {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 640px) {
+  .qz-prv-item {
+    flex-wrap: wrap;
+  }
+  .qz-prv-item__texto {
+    flex-basis: calc(100% - 48px);
+  }
+}
+.qz-barra-filtros > .qz-prv-seletor {
+  flex-basis: 230px;
+}

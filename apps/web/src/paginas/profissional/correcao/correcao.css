@@ -1,0 +1,193 @@
+/* Correções (Figma 07): fila, lista lateral e tela de correção. */
+
+/* ---------- Fila (/app/correcoes) ---------- */
+.qz-correcao__filtro {
+  flex: 0 1 360px !important;
+}
+.qz-correcao__fila-topo {
+  margin-bottom: var(--qz-espaco-4);
+}
+.qz-correcao__fila-topo h2 {
+  font-size: 1.15rem;
+  margin-bottom: 4px;
+}
+.qz-correcao__fila-topo p {
+  margin: 0;
+}
+.qz-correcao__fila .qz-tabela-wrapper {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+}
+
+/* ---------- Lista lateral "Respostas pendentes" ---------- */
+.qz-correcao__fila-lateral h2 {
+  margin-bottom: 4px !important;
+}
+.qz-correcao__fila-lateral > p {
+  margin: 0 0 var(--qz-espaco-4);
+}
+.qz-correcao__itens {
+  display: flex;
+  flex-direction: column;
+  gap: var(--qz-espaco-3);
+}
+.qz-correcao__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px var(--qz-espaco-3);
+  border-radius: var(--qz-raio-pequeno);
+  background: var(--qz-cor-fundo);
+  color: var(--qz-cor-texto);
+  text-decoration: none;
+}
+.qz-correcao__item:hover {
+  background: var(--qz-cor-neutra-suave);
+}
+.qz-correcao__item--ativo,
+.qz-correcao__item--ativo:hover {
+  background: var(--qz-cor-primaria-suave);
+}
+.qz-correcao__item-nome {
+  font-weight: 600;
+  font-size: 0.93rem;
+}
+.qz-correcao__item--ativo .qz-correcao__item-nome {
+  color: var(--qz-cor-primaria);
+}
+.qz-correcao__item-sub {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--qz-cor-texto-suave);
+}
+
+/* ---------- Cartão principal ---------- */
+.qz-correcao__aluno {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--qz-espaco-3);
+  margin-bottom: var(--qz-espaco-3);
+}
+.qz-correcao__aluno h2 {
+  font-size: 1.3rem;
+  margin: 0 0 4px;
+}
+.qz-correcao__aluno p {
+  margin: 0;
+}
+.qz-correcao__questao-topo {
+  justify-content: space-between;
+  margin-bottom: var(--qz-espaco-4);
+}
+.qz-correcao__enunciado {
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.45;
+  margin-bottom: var(--qz-espaco-4);
+}
+.qz-correcao__resposta {
+  padding: 20px;
+  margin-bottom: var(--qz-espaco-4);
+  border-radius: var(--qz-raio-pequeno);
+  background: var(--qz-cor-fundo);
+  line-height: 1.6;
+}
+.qz-correcao__rotulo {
+  display: block;
+  margin-bottom: var(--qz-espaco-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--qz-cor-texto-suave);
+}
+.qz-correcao__questao .qz-alerta {
+  margin-bottom: 0;
+}
+.qz-correcao__esperada {
+  display: block;
+}
+
+/* ---------- Resumo do aluno ---------- */
+.qz-correcao__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.qz-correcao__lista li {
+  display: flex;
+  align-items: center;
+  gap: var(--qz-espaco-3);
+  padding: var(--qz-espaco-3) 0;
+  border-bottom: 1px solid var(--qz-cor-borda);
+}
+.qz-correcao__lista li > :first-child {
+  flex: 1;
+}
+
+/* ---------- Critérios de pontuação ---------- */
+.qz-correcao__criterios {
+  list-style: none;
+  margin: 0 0 var(--qz-espaco-5);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--qz-espaco-4);
+}
+.qz-correcao__criterios li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--qz-espaco-3);
+}
+.qz-correcao__pontos {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--qz-espaco-2);
+}
+.qz-correcao__pontos-campo {
+  width: 90px;
+}
+.qz-correcao__campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--qz-espaco-4);
+  align-items: start;
+}
+.qz-correcao__total {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.qz-correcao__total .qz-correcao__rotulo {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.87rem;
+  color: var(--qz-cor-texto);
+  margin-bottom: 2px;
+}
+.qz-correcao__total strong {
+  font-size: 1.4rem;
+}
+.qz-correcao__rodape {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--qz-espaco-3);
+  margin-top: var(--qz-espaco-4);
+}
+.qz-correcao__feedback {
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  .qz-correcao__campos {
+    grid-template-columns: 1fr;
+  }
+}
+.qz-correcao__lista .qz-link {
+  text-align: left;
+}

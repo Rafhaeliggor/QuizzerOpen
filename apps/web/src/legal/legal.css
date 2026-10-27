@@ -1,0 +1,66 @@
+/* Termos de Uso, Política de Privacidade e página de aceite (ADR-0060). */
+.qz-legal-pagina {
+  max-width: 820px;
+  margin: var(--qz-espaco-6) auto;
+  padding: 0 var(--qz-espaco-4);
+}
+.qz-legal-pagina__topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--qz-espaco-3);
+  margin-bottom: var(--qz-espaco-4);
+}
+.qz-legal section + section {
+  margin-top: var(--qz-espaco-4);
+}
+.qz-legal h2,
+.qz-legal h3 {
+  margin-bottom: var(--qz-espaco-2);
+}
+.qz-legal p,
+.qz-legal ul {
+  margin: 0 0 var(--qz-espaco-2);
+}
+.qz-legal li + li {
+  margin-top: 4px;
+}
+.qz-aceite__caixa {
+  max-height: 46vh;
+  overflow: auto;
+  margin: var(--qz-espaco-3) 0 var(--qz-espaco-4);
+  padding: var(--qz-espaco-4);
+  border: 1px solid var(--qz-cor-borda);
+  border-radius: var(--qz-raio-pequeno);
+  background: var(--qz-cor-fundo);
+}
+.qz-aceite__caixa:focus-visible {
+  outline-offset: -2px;
+}
+.qz-aceite__marcacoes {
+  display: grid;
+  gap: var(--qz-espaco-3);
+  margin: 0 0 var(--qz-espaco-4);
+  padding: 0;
+  border: none;
+}
+.qz-aceite__marcacoes legend {
+  margin-bottom: 4px;
+  padding: 0;
+}
+.qz-aceite__marcacao {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--qz-espaco-2);
+  cursor: pointer;
+}
+.qz-aceite__marcacao input {
+  margin: 4px 0 0;
+}
+.qz-aceite__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--qz-espaco-2);
+}

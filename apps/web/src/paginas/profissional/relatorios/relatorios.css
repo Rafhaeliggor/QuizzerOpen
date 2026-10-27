@@ -1,0 +1,56 @@
+/* Relatórios (Figma 16) */
+.rel-filtros {
+  gap: var(--qz-espaco-3);
+}
+.rel-filtros__icone {
+  color: var(--qz-cor-texto-suave);
+}
+.rel-filtros__campo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--qz-espaco-2);
+  font-size: 0.9rem;
+  color: var(--qz-cor-texto-suave);
+}
+.rel-filtros__campo .qz-input {
+  min-width: 172px;
+  color: var(--qz-cor-texto);
+}
+.rel-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: var(--qz-espaco-4);
+  align-items: start;
+}
+.rel-grade > * {
+  min-width: 0;
+}
+.qz-cartao > .rel-subtitulo {
+  margin: calc(-1 * var(--qz-espaco-3)) 0 var(--qz-espaco-5);
+  font-size: 0.9rem;
+}
+.rel-rodape {
+  margin: var(--qz-espaco-4) 0 0;
+}
+.rel-link-forte {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+.rel-link-forte:hover {
+  color: var(--qz-cor-primaria);
+  text-decoration: underline;
+}
+.rel-sinais {
+  margin: 0;
+  padding-left: 18px;
+}
+.rel-enunciado {
+  display: block;
+  max-width: 520px;
+}
+@media (max-width: 600px) {
+  .rel-grade {
+    grid-template-columns: 1fr;
+  }
+}

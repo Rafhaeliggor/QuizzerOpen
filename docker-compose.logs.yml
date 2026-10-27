@@ -1,0 +1,77 @@
+# Centralização de logs (opcional — ADR-0054). Liga somando este arquivo ao principal no .env:
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.logs.yml
+#
+# Cada serviço passa a enviar o stdout ao coletor "logs" (Vector) pelo driver fluentd do Docker.
+# O coletor grava um arquivo por serviço e por dia em LOGS_DIR e pode encaminhar para fora do
+# VPS (LOGS_ENCAMINHAR_HTTP / LOGS_LOKI_URL). `docker compose logs` continua funcionando
+# (cache local do Docker ≥ 20.10). Com o coletor fora do ar, os serviços seguem rodando
+# (fluentd-async): as mensagens ficam em buffer e são reenviadas quando ele volta.
+x-logging-central: &logging-central
+  driver: fluentd
+  options:
+    # Quem conecta é o daemon do Docker (no host), por isso 127.0.0.1 e porta publicada.
+    fluentd-address: 127.0.0.1:${LOGS_PORTA:-24224}
+    fluentd-async: "true"
+    fluentd-buffer-limit: "10000"
+    tag: "{{.Name}}"
+
+services:
+  logs:
+    image: timberio/vector:0.60.0-alpine
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/etc/vector/iniciar.sh"]
+    environment:
+      LOGS_RETENCAO_DIAS: ${LOGS_RETENCAO_DIAS:-30}
+      LOGS_ENCAMINHAR_HTTP: ${LOGS_ENCAMINHAR_HTTP:-}
+      LOGS_ENCAMINHAR_TOKEN: ${LOGS_ENCAMINHAR_TOKEN:-}
+      LOGS_LOKI_URL: ${LOGS_LOKI_URL:-}
+    ports:
+      - "127.0.0.1:${LOGS_PORTA:-24224}:24224"
+    volumes:
+      - ./infra/logs/vector.yaml:/etc/vector/vector.yaml:ro
+      - ./infra/logs/iniciar.sh:/etc/vector/iniciar.sh:ro
+      - ${LOGS_DIR:-./logs}:/logs
+      - logs_estado:/var/lib/vector
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8686/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    # frontend-net: saída para o destino externo opcional.
+    networks: [frontend-net]
+    # O próprio coletor fica no json-file (não manda log para si mesmo).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    logging: *logging-central
+    depends_on: { logs: { condition: service_started } }
+  certbot:
+    logging: *logging-central
+  api:
+    logging: *logging-central
+    depends_on: { logs: { condition: service_started } }
+  migrate:
+    logging: *logging-central
+    depends_on: { logs: { condition: service_started } }
+  postgres:
+    logging: *logging-central
+    depends_on: { logs: { condition: service_started } }
+  backup:
+    logging: *logging-central
+  monitor:
+    logging: *logging-central
+  redis:
+    logging: *logging-central
+    depends_on: { logs: { condition: service_started } }
+
+volumes:
+  logs_estado:
